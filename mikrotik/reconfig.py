@@ -1,7 +1,7 @@
-import csv
 import configparser
 import paramiko
 import socket
+import tomllib
 
 # Load configuration from ini file
 config = configparser.ConfigParser()
@@ -10,6 +10,15 @@ config.read("config.ini")
 radius_egress = config["radius"]["egress"]
 radius_ingress = config["radius"]["ingress"]
 radius_secret = config["radius"]["secret"]
+
+# Load secrets from secrets.toml file
+with open("secrets.toml", "rb") as f:
+    secrets = tomllib.load(f)
+
+# Get default credentials from secrets
+DEFAULT_USERNAME = secrets["mikrotik"]["username"]
+DEFAULT_PASSWORD = secrets["mikrotik"]["password"]
+DEFAULT_PORT = secrets["mikrotik"]["port"]
 
 # Create SSH client
 client = paramiko.SSHClient()
@@ -194,21 +203,24 @@ def exec(command: str) -> str:
 
 
 def main() -> None:
-    csv_file = "./devices.csv"  # Update with your actual file path
-
-    with open(csv_file, newline="") as file:
-        for row in csv.DictReader(file):
-            try:
-                configure_mikrotik(
-                    ip=row["ip"],
-                    port=int(row["port"]),
-                    username=row["username"],
-                    password=row["password"],
-                    portal_id=row["portal_id"],
-                    acl=row["ssh_acl"],
-                )
-            except Exception as e:
-                raise Exception(f"Error processing row for {row.get('ip', 'unknown')}: {e}") from e
+    # Prompt user for IP address and snapx ID
+    ip = input("Enter the IP address of the gateway: ").strip()
+    snapx_id = input("Enter the snapx ID: ").strip()
+    
+    # Optional: Prompt for custom ACL (leave empty if none)
+    custom_acl = input("Enter custom SSH ACL (optional, press Enter to skip): ").strip()
+    
+    try:
+        configure_mikrotik(
+            ip=ip,
+            port=DEFAULT_PORT,
+            username=DEFAULT_USERNAME,
+            password=DEFAULT_PASSWORD,
+            portal_id=snapx_id,
+            acl=custom_acl if custom_acl else "",
+        )
+    except Exception as e:
+        raise Exception(f"Error configuring {ip}: {e}") from e
 
 
 if __name__ == "__main__":
