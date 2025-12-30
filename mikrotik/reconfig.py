@@ -1,3 +1,4 @@
+import csv
 import configparser
 import paramiko
 import socket
@@ -203,24 +204,45 @@ def exec(command: str) -> str:
 
 
 def main() -> None:
-    # Prompt user for IP address and snapx ID
-    ip = input("Enter the IP address of the gateway: ").strip()
-    snapx_id = input("Enter the snapx ID: ").strip()
+    # Ask if user wants to use CSV file
+    use_csv = input("Do you want to use the devices.csv file? (y/n): ").strip().lower()
     
-    # Optional: Prompt for custom ACL (leave empty if none)
-    custom_acl = input("Enter custom SSH ACL (optional, press Enter to skip): ").strip()
-    
-    try:
-        configure_mikrotik(
-            ip=ip,
-            port=DEFAULT_PORT,
-            username=DEFAULT_USERNAME,
-            password=DEFAULT_PASSWORD,
-            portal_id=snapx_id,
-            acl=custom_acl if custom_acl else "",
-        )
-    except Exception as e:
-        raise Exception(f"Error configuring {ip}: {e}") from e
+    if use_csv == 'y':
+        # Use CSV file with credentials from the CSV
+        csv_file = "./devices.csv"
+        
+        with open(csv_file, newline="") as file:
+            for row in csv.DictReader(file):
+                try:
+                    configure_mikrotik(
+                        ip=row["ip"],
+                        port=int(row["port"]),
+                        username=row["username"],
+                        password=row["password"],
+                        portal_id=row["portal_id"],
+                        acl=row["ssh_acl"],
+                    )
+                except Exception as e:
+                    raise Exception(f"Error processing row for {row.get('ip', 'unknown')}: {e}") from e
+    else:
+        # Prompt user for IP address and snapx ID
+        ip = input("Enter the IP address of the gateway: ").strip()
+        snapx_id = input("Enter the snapx ID: ").strip()
+        
+        # Optional: Prompt for custom ACL (leave empty if none)
+        custom_acl = input("Enter custom SSH ACL (optional, press Enter to skip): ").strip()
+        
+        try:
+            configure_mikrotik(
+                ip=ip,
+                port=DEFAULT_PORT,
+                username=DEFAULT_USERNAME,
+                password=DEFAULT_PASSWORD,
+                portal_id=snapx_id,
+                acl=custom_acl if custom_acl else "",
+            )
+        except Exception as e:
+            raise Exception(f"Error configuring {ip}: {e}") from e
 
 
 if __name__ == "__main__":
